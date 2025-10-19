@@ -1,8 +1,8 @@
 ### Sequence-dia
-  ![sequence.png](/imgs/sequence.png)
+  ![sequence.png](imgs/sequence.png)
 
 ### Flowchart
-  ![flowchart.png](/imgs/flowchart.png)
+  ![flowchart.png](imgs/flowchart.png)
 
 ### Class-dia
-  ![class-dia.png](/imgs/class-dia.png)
+  ![class-dia.png](imgs/class-dia.png)
