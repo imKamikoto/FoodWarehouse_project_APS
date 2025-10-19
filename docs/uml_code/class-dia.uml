@@ -1,0 +1,86 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam classFontColor black
+skinparam ArrowColor gray
+skinparam ArrowThickness 1
+skinparam classBackgroundColor white
+skinparam classBorderColor black
+
+class Warehouse {
+  -cameras : List<ColdStorage>
+  -loaders : List<Loader>
+  -dispatcher : Dispatcher
+  -suppliers : List<Supplier>
+  +acceptBatch(batch : Batch) : void
+  +processOrders() : void
+  +updateStats() : void
+}
+
+class Supplier {
+  -id : int
+  -name : string
+  -productType : string
+  +generateBatch() : Batch
+}
+
+class Batch {
+  +id : int
+  +client : string
+  +arrivalDate : Date
+  +expiryDate : Date
+  +isExpired() : bool
+}
+
+class ColdStorage {
+  +capacity : int
+  -batches : List<Batch>
+  +addBatch(batch : Batch) : bool
+  +removeOldest() : Batch
+  +isFull() : bool
+}
+
+class Dispatcher {
+  -metrics : Metrics
+  -warehouse : Warehouse
+  +assignLoader(order : Order) : Loader
+  +dispatchBatch(batch : Batch) : void
+}
+
+class Loader {
+  +id : int
+  +isBusy : bool
+  +serveClient(order : Order) : void
+}
+
+class Store {
+  +id : int
+  +name : string
+  +createOrder() : Order
+}
+
+class Order {
+  +id : int
+  +client : string
+  +items : List<Batch>
+}
+
+class Metrics {
+  +received : int
+  +discarded : int
+  +delivered : int
+  +logArrival(batch : Batch) : void
+  +logDiscard(batch : Batch) : void
+  +logDelivery(batch : Batch) : void
+}
+
+Supplier "1" --> "1" Warehouse : поставляет
+Warehouse "1" o-- "*" ColdStorage : хранит
+Warehouse "1" o-- "*" Loader : использует
+Warehouse "1" *-- "1" Dispatcher : управляет
+Dispatcher --> Loader : назначает
+Loader --> Store : обслуживает
+Dispatcher --> Metrics : записывает
+ColdStorage --> Batch : содержит
+Store --> Warehouse : делает заказ
+Supplier --> Batch : создаёт
+@enduml

@@ -1,0 +1,106 @@
+@startuml
+skinparam sequence {
+  LifeLineBorderColor black
+  ParticipantBorderColor black
+  ParticipantBackgroundColor #ffffff
+  ArrowColor black
+  BoxBorderColor #bdbdbd
+  BackgroundColor white
+}
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteBorderColor #9E9E9E
+
+actor       "Поставщик"                 as Supplier  #f3e5f5
+participant "Буфер\n(Камеры, Д1ОЗ3)"    as Buffer    #e1f5fe
+participant "Диспетчер"                 as Disp      #e0f7fa
+participant "Погрузчик №1"              as L1        #ede7f6
+participant "Погрузчик №2"              as L2        #ede7f6
+participant "Метрики/Отчёты"            as Metrics   #fff3e0
+participant "Утилизация"                as Waste     #ffebee
+participant "Магазин"                   as Store     #e8f5e9
+
+== Приём новой партии ==
+loop Поток поставок (ИЗ1: пуассоновский)
+  Supplier -> Disp : передатьПартию(batch)
+  Disp -> Buffer : естьСвободноеМесто() ?
+  Buffer --> Disp : свободное место есть
+  alt Буфер не переполнен \n(Д1ОЗ3: на свободное место)
+    Disp -> Buffer : addBatch(batch)
+    Disp -> Metrics : logArrival(batch)
+  end
+  Buffer --> Disp : свобоного места нет
+  alt Буфер переполнен \n(Д1ОО3: самая старая в буфере)
+    Disp -> Buffer : removeOldest() --> oldBatch
+    Buffer -> Waste : утилизировать(oldBatch)
+    Disp -> Metrics : logDiscard(oldBatch)
+    Disp -> Buffer : addBatch(batch)
+    Disp -> Metrics : logArrival(batch)
+  end
+end
+
+
+== Формирование заказа ==
+Store -> Disp : создатьЗаказ(client)
+Disp -> Buffer : Товар в наличии?
+alt Товар в наличии
+  Buffer --> Disp : Товар в наличии!
+  loop Поиск свободных погрузчиков
+    Disp -> L1 : Свободен?
+    alt Погрузчик №1 свободен
+      L1 --> Disp : Свободен
+      Disp -> L1 : назначитьЗаказ(client)
+    else Погрузчик №1 занят
+      Disp -> L2 : Свободен?
+      alt Погрузчик №2 свободен
+        L2 --> Disp : Свободен
+        Disp -> L2 : назначитьЗаказ(client)
+      else Оба погрузчика заняты
+        note right of Disp
+        Ожидание освобождения погрузчиков
+        end note
+      end
+    end
+  end
+  Disp --> Store : Заказ сформирован!
+else Товара нет в наличии
+  Buffer --> Disp : Нужного товара нет!
+  Disp --> Store : Формирование заказа невозможно
+end
+
+== Отгрузка заказа ==
+note right of L1
+Обслуживание пакета клиента (Д2Б5)
+end note
+alt Работает Погрузчик №1
+  loop Пока есть партии клиента
+    L1 -> Buffer : fetch(client)
+    Buffer --> L1 : Товар есть в наличии!
+    alt Партия найдена
+      L1 -> Store : отгрузить(batch)
+      L1 -> Metrics : logDelivery(batch)
+    else Партии нет
+      Buffer --> L1 : Товара нет!
+      L1 -> Metrics : logDeliveryEnd(batch)
+      break
+    end
+  end
+end
+alt Работает Погрузчик №2
+  loop Пока есть партии клиента
+    L2 -> Buffer : fetch(client)
+    Buffer --> L2 : Товар есть в наличии!
+    alt Партия найдена
+      L2 -> Store : отгрузить(batch)
+      L2 -> Metrics : logDelivery(batch)
+    else Партии нет
+      Buffer --> L2 : Товара нет!
+      L2 -> Metrics : logDeliveryEnd(batch
+      break
+    end
+  end
+end
+
+== Завершение операции ==
+Disp -> Metrics : сводка(приход, списание, отгрузка)
+
+@enduml
